@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Student Portal</title></head>
+<body style="font-family:Arial;padding:16px">
+  <h2>Student Portal</h2>
+  <label>Choose Exam:
+    <select id="examSelect"></select>
+  </label>
+  <label>Enter Roll No: <input id="rollNo"></label>
+  <button onclick="getResult()">Get Result</button>
+  <div id="resultArea"></div>
+  <h3>Top 10</h3>
+  <div id="top10"></div>
+  <button onclick="printPage()">Print Page</button>
+
+<script>
+const WEBAPP = 'YOUR_WEBAPP_URL';
+
+async function loadExams(){
+  const res = await fetch(WEBAPP + '?action=getExamList');
+  const j = await res.json();
+  if(j.status === 'success'){
+    const sel = document.getElementById('examSelect');
+    sel.innerHTML = '';
+    j.exams.forEach(function(x){
+      const opt = document.createElement('option');
+      opt.value = x.examId;
+      opt.text = x.examName + ' (' + x.examDate + ')';
+      sel.add(opt);
+    });
+  }
+}
+async function getResult(){
+  const examId = document.getElementById('examSelect').value;
+  const roll = document.getElementById('rollNo').value.trim();
+  if(!examId || !roll) return alert('Select exam and enter roll');
+  const res = await fetch(WEBAPP + '?action=getStudentResult&examId=' + encodeURIComponent(examId) + '&rollNo=' + encodeURIComponent(roll));
+  const j = await res.json();
+  const area = document.getElementById('resultArea');
+  if(j.status === 'success'){
+    const r = j.result;
+    area.innerHTML = '<p><strong>' + r.name + '</strong><br>Roll: ' + r.rollNo + '<br>Score: ' + r.score + '/' + (r.answers.length) + '<br>Percentage: ' + r.percentage.toFixed(2) + '%<br>Rank: ' + r.rank + '</p>';
+    // show question-wise answers if you want
+  } else { area.innerText = 'No result: ' + j.message; }
+  // also load top10
+  loadTop10(examId);
+}
+async function loadTop10(examId){
+  const res = await fetch(WEBAPP + '?action=getTop10&examId=' + encodeURIComponent(examId));
+  const j = await res.json();
+  const div = document.getElementById('top10');
+  if(j.status === 'success'){
+    div.innerHTML = '<ol>' + j.top10.map(t => '<li>'+t.name+' ('+t.rollNo+') - Score: '+t.score+' - Rank: '+t.rank+'</li>').join('') + '</ol>';
+  } else div.innerText = 'No top10';
+}
+function printPage(){ window.print(); }
+
+window.onload = loadExams;
+</script>
+</body>
+</html>
