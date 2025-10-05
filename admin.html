@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin - Result Portal</title>
+  <style>body{font-family:Arial;padding:16px}label{display:block;margin-top:8px}</style>
+</head>
+<body>
+  <h2>Admin Panel</h2>
+
+  <h3>Create Exam</h3>
+  <label>Exam Name <input id="examName"></label>
+  <label>Exam Date <input id="examDate" type="date"></label>
+  <label>Total Marks <input id="totalMarks" type="number" value="0"></label>
+  <label>Difficulty <select id="difficulty"><option>Easy</option><option>Medium</option><option>Hard</option></select></label>
+  <label>Answer Key (comma separated, e.g. A,B,C,D) <input id="answerKey"></label>
+  <button onclick="createExam()">Create Exam</button>
+  <div id="createExamResult"></div>
+
+  <h3>Upload Results CSV</h3>
+  <p>CSV format: RollNo,answer1,answer2,...</p>
+  <input id="examSelectUpload" placeholder="Exam ID">
+  <textarea id="resultsCsv" rows="6" cols="80" placeholder="Paste CSV here"></textarea><br>
+  <button onclick="uploadResults()">Upload Results</button>
+  <div id="uploadResult"></div>
+
+  <h3>Declare Exam</h3>
+  <input id="examDeclare" placeholder="Exam ID">
+  <button onclick="declareExam()">Declare</button>
+  <div id="declareResult"></div>
+
+<script>
+const WEBAPP = 'https://script.google.com/macros/s/AKfycbxm1Hfqji59S-QgwkUHpjGp9_LDlnUSaFm8mv0P5fjWG2GEg2emLnQvjhob50qHItBb/exec';
+
+async function createExam(){
+  const keyStr = document.getElementById('answerKey').value.trim();
+  if(!keyStr){ alert('Answer key required'); return; }
+  const keyArr = keyStr.split(',').map(s=>s.trim());
+  const payload = { action: 'createExam', exam: {
+    ExamName: document.getElementById('examName').value,
+    ExamDate: document.getElementById('examDate').value,
+    Difficulty: document.getElementById('difficulty').value,
+    TotalMarks: Number(document.getElementById('totalMarks').value) || keyArr.length,
+    QuestionsCount: keyArr.length,
+    AnswerKeyArray: keyArr
+  }};
+  const res = await fetch(WEBAPP, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const j = await res.json();
+  document.getElementById('createExamResult').innerText = JSON.stringify(j);
+}
+
+function parseCsvToResultsArray(csv) {
+  const lines = csv.trim().split(/\r?\n/);
+  const arr = [];
+  for(const ln of lines){
+    const cols = ln.split(',');
+    const roll = cols[0].trim();
+    const answers = cols.slice(1).map(s=>s.trim());
+    arr.push({ RollNo: roll, AnswersArray: answers });
+  }
+  return arr;
+}
+
+async function uploadResults(){
+  const examId = document.getElementById('examSelectUpload').value.trim();
+  const csv = document.getElementById('resultsCsv').value;
+  if(!examId || !csv){ alert('Exam ID and CSV required'); return; }
+  const resultsArray = parseCsvToResultsArray(csv);
+  const payload = { action:'uploadResults', examId: examId, resultsArray: resultsArray };
+  const res = await fetch(WEBAPP, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  const j = await res.json();
+  document.getElementById('uploadResult').innerText = JSON.stringify(j);
+}
+
+async function declareExam(){
+  const examId = document.getElementById('examDeclare').value.trim();
+  if(!examId) return alert('Exam ID required');
+  const payload = { action:'declareExam', examId: examId };
+  const res = await fetch(WEBAPP, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  const j = await res.json();
+  document.getElementById('declareResult').innerText = JSON.stringify(j);
+}
+</script>
+</body>
+</html>
